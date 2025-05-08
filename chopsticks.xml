@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<mujoco model="chopstick_softcube">
+  <compiler angle="degree" coordinate="local"/>
+  <option timestep="0.001" integrator="RK4"/>
+
+  <asset>
+    <!-- 1) Checkered floor texture -->
+    <texture
+        name="floor_tex"
+        type="2d"
+        builtin="checker"
+        rgb1="0.8 0.8 0.8"
+        rgb2="0.3 0.3 0.3"
+        width="512"
+        height="512"/>
+    <material
+        name="floor_mat"
+        texture="floor_tex"
+        texrepeat="20 20"
+        texuniform="true"
+        reflectance="0.1"/>
+
+    <!-- 2) Skybox gradient background -->
+    <texture
+        name="skybox_tex"
+        type="skybox"
+        builtin="gradient"
+        rgb1="1 1 1"
+        rgb2="0.8 0.9 1"
+        width="256"
+        height="1536"/>
+
+    <material name="stick_mat" rgba="0.8 0.3 0.3 1"/>
+  </asset>
+
+  <default>
+    <!-- Give every geom nonzero mass; base friction -->
+    <geom density="500" 
+          friction="0.5 0.1 0.1"/>
+          <!-- solref="0.04 1"
+          solimp="0.9 0.95 0.01"/> -->
+  </default>
+
+  <worldbody>
+    <geom
+        name="floor"
+        type="plane"
+        size="3 3 0.1"
+        material="floor_mat"/>
+
+    <!-- Left chopstick -->
+    <body name="left_stick" pos="-0.1 0 0.5" gravcomp="1">
+      <joint name="left_slide"  type="slide" axis="1 0 0" range="-0.05 0.05"/>
+      <joint name="left_lift"  type="slide" axis="0 0 1" range="-0.5 0.5"/>
+      <geom  type="capsule" fromto="0 0 0 0 0.4 0" size="0.01" material="stick_mat"/>
+    </body>
+
+    <!-- Right chopstick -->
+    <body name="right_stick" pos="0.1 0 0.5" gravcomp="1">
+      <joint name="right_slide" type="slide" axis="1 0 0" range="-0.05 0.05"/>
+      <joint name="right_lift" type="slide" axis="0 0 1" range="-0.5 0.5"/>
+      <geom  type="capsule" fromto="0 0 0 0 0.4 0" size="0.01" material="stick_mat"/>
+    </body>
+
+  </worldbody>
+
+  <actuator>
+    <motor joint="left_slide"  ctrlrange="-1 1" gear="0.1"/>
+    <motor joint="right_slide" ctrlrange="-1 1" gear="0.1"/>
+    <motor joint="left_lift"  ctrlrange="-1 1" gear="0.1"/>
+    <motor joint="right_lift" ctrlrange="-1 1" gear="0.1"/>
+  </actuator>
+</mujoco>

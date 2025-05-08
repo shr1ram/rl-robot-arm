@@ -1,0 +1,4 @@
+<mujoco>
+    <include file="chopsticks.xml"/>
+    <include file="hard_cube.xml"/>
+</mujoco>

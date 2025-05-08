@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<mujoco model="cube_model">
+    <compiler angle="degree"/>
+    <option integrator="RK4"/>
+
+    <default>
+        <!-- enable collision and contact processing on all geoms by default -->
+        <geom condim="3" contype="1" conaffinity="1"/>
+    </default>
+
+    <worldbody>
+        <!-- Free cube body -->
+        <body name="cube" pos="0 0 0.2">
+            <!-- 6-DOF joint to let it fall & tumble -->
+            <freejoint/>
+
+            <!-- box geom: half-sizes (0.1,0.1,0.1) → full cube of side 0.2 m -->
+            <geom type="box" size="0.1 0.1 0.1"
+                  rgba="0.8 0.1 0.1 1"
+                  density="1000"
+                  friction="1 0.5 0.1"/>
+        </body>
+    </worldbody>
+
+    <!-- no actuators in this simple model -->
+    <actuator/>
+</mujoco> 
