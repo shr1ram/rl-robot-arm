@@ -1,0 +1,8 @@
+Simulated Training and Validation of an RL Policy for Robotic Grasping of Deformable Objects
+
+To Do List:
+[Done] Create hard chopsticks model
+[Done] Create hard cube model
+[] Create RL model for hard conditions
+[] Create soft chopsticks model
+[] Create soft cube model
