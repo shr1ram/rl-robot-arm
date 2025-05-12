@@ -1,6 +1,6 @@
 import numpy as np
 from stable_baselines3 import PPO
-from utils.simulation_env import ChopsticksEnv
+from utils.simulation_env import SimulationEnv
 import time
 from utils.gym_wrapper import GymWrapper
 
@@ -21,7 +21,7 @@ print("Press Ctrl+C to stop the simulation")
 print("NOTE: This script must be run with 'mjpython' on macOS")
 
 # Set the maximum number of steps for a single run
-MAX_STEPS = 1000
+MAX_STEPS = 10000
 
 try:
     # Run the simulation once
@@ -45,8 +45,8 @@ try:
         cube_height = custom_env._get_cube_z_position() - custom_env.initial_cube_z
         
         # Print status every 10 steps for cleaner output
-        if step_count % 10 == 0 or step_count == MAX_STEPS - 1:
-            print(f"Step {step_count}/{MAX_STEPS}, Cube height: {cube_height:.4f}")
+        # if step_count % 10 == 0 or step_count == MAX_STEPS - 1:
+        #     print(f"Step {step_count}/{MAX_STEPS}, Cube height: {cube_height:.4f}")
         
         # Add a small delay to make the visualization smoother
         time.sleep(0.01)

@@ -65,9 +65,9 @@
   </worldbody>
 
   <actuator>
-    <motor joint="left_slide"  ctrlrange="-1 1" gear="0.1"/>
-    <motor joint="right_slide" ctrlrange="-1 1" gear="0.1"/>
-    <motor joint="left_lift"  ctrlrange="-1 1" gear="0.1"/>
-    <motor joint="right_lift" ctrlrange="-1 1" gear="0.1"/>
+    <motor joint="left_slide"  ctrlrange="-1 1" gear="10"/>
+    <motor joint="right_slide" ctrlrange="-1 1" gear="10"/>
+    <motor joint="left_lift"  ctrlrange="-1 1" gear="10"/>
+    <motor joint="right_lift" ctrlrange="-1 1" gear="10"/>
   </actuator>
 </mujoco>
