@@ -4,7 +4,7 @@ from mujoco import viewer
 
 
 class SimulationEnv:
-    def __init__(self, xml_file_path: str):
+    def __init__(self, xml_file_path: str, max_steps=None):
         self.model = mujoco.MjModel.from_xml_path(xml_file_path)
         self.data = mujoco.MjData(self.model)
 
@@ -14,27 +14,38 @@ class SimulationEnv:
         # Initialize previous positions for tracking movement
         self.prev_left_pos = None
         self.prev_right_pos = None
+        
+        # Step counter for episode length limiting
+        self.step_counter = 0
+        self.max_steps = max_steps  # None means no step limit
 
     def step(self, action):
-        # Store current positions before stepping
-        if self.prev_left_pos is None:
-            self.prev_left_pos = self._get_chopstick_position("left_stick")
-            self.prev_right_pos = self._get_chopstick_position("right_stick")
-            
+        # Apply action and step the simulation
         self.data.ctrl[:] = action
         mujoco.mj_step(self.model, self.data)
+        
+        # Increment step counter
+        self.step_counter += 1
+        
+        # Calculate reward
         obs = self._get_obs()
         reward = self._compute_reward()
-        done = self._check_done()
         
-        # Update previous positions for next step
-        self.prev_left_pos = self._get_chopstick_position("left_stick")
-        self.prev_right_pos = self._get_chopstick_position("right_stick")
+        # Check if episode should terminate due to cube height
+        done = self._check_done()
+        if self.step_counter % 100 == 0:  # Print with 10% chance to avoid too much output
+            print(self.step_counter)
+        # Also check if episode should terminate due to step limit
+        if self.max_steps is not None and self.step_counter >= self.max_steps:
+            done = True
+            print(f"Episode terminated due to reaching max steps: {self.max_steps}")
         
         return obs, reward, done, {}
 
     def reset(self):
-        self.data = mujoco.MjData(self.model)
+        mujoco.mj_resetData(self.model, self.data)
+        # Reset step counter when environment is reset
+        self.step_counter = 0
         # Reset previous positions
         self.prev_left_pos = None
         self.prev_right_pos = None
@@ -58,48 +69,37 @@ class SimulationEnv:
         right_surface_dist = self._get_surface_distance("right_stick", "cube")
         
         # Calculate individual chopstick distance rewards
-        left_distance_reward = left_surface_dist
-        right_distance_reward = right_surface_dist
+        left_distance_reward = -left_surface_dist
+        right_distance_reward = -right_surface_dist
         
         # Calculate alignment reward (penalize deviation from x=0, y=0)
         # Use the horizontal distance (x,y) from the origin
         horizontal_deviation = np.sqrt(cube_pos[0]**2 + cube_pos[1]**2)
-        # Convert to a reward that decreases as deviation increases
-        alignment_reward = -5.0 * horizontal_deviation  # Negative because we want to minimize deviation
-        
-        # Calculate movement penalty if we have previous positions
-        movement_penalty = 0.0
-        if self.prev_left_pos is not None and self.prev_right_pos is not None:
-            # Get current positions
-            curr_left_pos = self._get_chopstick_position("left_stick")
-            curr_right_pos = self._get_chopstick_position("right_stick")
-            
-            # Calculate movement distances
-            left_movement = np.linalg.norm(curr_left_pos - self.prev_left_pos)
-            right_movement = np.linalg.norm(curr_right_pos - self.prev_right_pos)
-            
-            # Apply penalty for movement (negative because it's a penalty)
-            movement_penalty = -2.0 * (left_movement + right_movement)
+        alignment_reward = -horizontal_deviation  # Negative because we want to minimize deviation
         
         # Combine rewards with balanced weights
         reward = (10.0 * height_reward + 
-                 7.5 * left_distance_reward + 
-                 7.5 * right_distance_reward + 
-                 8.0 * alignment_reward + 
-                 movement_penalty)
+                 200.0 * left_distance_reward + 
+                 200.0 * right_distance_reward + 
+                 8.0 * alignment_reward)
         
         # Print debug info occasionally
-        if np.random.random() < 0.01:  # Print in ~1% of steps
-            movement_str = f", Movement: {movement_penalty:.4f}" if self.prev_left_pos is not None else ""
+        if self.step_counter % 100 == 0:  # Print in ~1% of steps
             print(f"DEBUG - Height: {height_reward:.4f}, Left Dist: {left_surface_dist:.4f}, "
-                  f"Right Dist: {right_surface_dist:.4f}, Alignment: {horizontal_deviation:.4f}{movement_str}, "
+                  f"Right Dist: {right_surface_dist:.4f}, Alignment: {horizontal_deviation:.4f}, "
                   f"Reward: {reward:.4f}")
         
         return reward
 
     def _check_done(self):
+        # Check if cube has reached the target height
         cube_z = self._get_cube_z_position()
-        return cube_z >= self.max_height
+        height_reached = cube_z >= self.max_height
+        
+        if height_reached and np.random.random() < 0.1:  # Print with 10% chance
+            print("Simulation complete - Maximum height reached!")
+            
+        return height_reached
 
     def _get_cube_z_position(self):
         # Adjust the site or geom name based on model
@@ -207,7 +207,7 @@ class SimulationEnv:
 
     def _get_max_lift_height(self):
         # Placeholder: you can return a constant or define based on the model
-        return 0.35  # e.g., max target height
+        return 0.6  # e.g., max target height
 
     def render(self):
         if not hasattr(self, '_viewer'):
