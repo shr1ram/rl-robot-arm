@@ -36,8 +36,8 @@ class SimulationEnv:
         base_reward = self._compute_reward()
         
         # Calculate action penalty
-        action_penalty = self._calculate_action_penalty(action)
-        reward = base_reward + action_penalty
+        base_penalty = self._calculate_penalty(action)
+        reward = base_reward + base_penalty
         
         # Store current action for next step
         self.prev_action = action.copy()
@@ -47,7 +47,7 @@ class SimulationEnv:
         if self.step_counter % 100 == 0:  # Print with 10% chance to avoid too much output
             print(self.step_counter)
             # Print action penalty in debug output
-            print(f"Action penalty: {action_penalty:.4f}, Total reward: {reward:.4f}")
+            print(f"Action penalty: {base_penalty:.4f}, Total reward: {reward:.4f}")
         # Also check if episode should terminate due to step limit
         if self.max_steps is not None and self.step_counter >= self.max_steps:
             done = True
@@ -72,10 +72,10 @@ class SimulationEnv:
         ])
 
     def _compute_reward(self):
-        # Get cube position
+        # Get cube position and velocity
         cube_pos = self._get_cube_position()
         cube_z = cube_pos[2]
-        height_reward = cube_z - self.initial_cube_z
+        height_reward = cube_z - self.initial_cube_z - 0.1
         
         # Calculate surface-to-surface distance between chopsticks and cube
         left_surface_dist = self._get_surface_distance("left_stick", "cube")
@@ -90,19 +90,57 @@ class SimulationEnv:
         horizontal_deviation = np.sqrt(cube_pos[0]**2 + cube_pos[1]**2)
         alignment_reward = -horizontal_deviation  # Negative because we want to minimize deviation
         
+        # Calculate pinching reward (reward when both chopsticks are close to the cube)
+        pinching_reward = 0.0
+        if left_surface_dist < 0.1 and right_surface_dist < 0.1:
+            pinching_reward = 5.0
+                    
         # Combine rewards with balanced weights
-        reward = (10.0 * height_reward + 
+        reward = (1000.0 * height_reward + 
                  20.0 * left_distance_reward + 
                  20.0 * right_distance_reward + 
-                 8.0 * alignment_reward)
+                 8.0 * alignment_reward + 
+                 0.0 * pinching_reward)
         
         # Print debug info occasionally
         if self.step_counter % 100 == 0:  # Print in ~1% of steps
             print(f"DEBUG - Height: {height_reward:.4f}, Left Dist: {left_surface_dist:.4f}, "
                   f"Right Dist: {right_surface_dist:.4f}, Alignment: {horizontal_deviation:.4f}, "
-                  f"Reward: {reward:.4f}")
+                  f"Pinch: {pinching_reward:.4f}, Reward: {reward:.4f}")
         
         return reward
+
+    def _calculate_penalty(self, action):
+        """Calculate penalty for large or jerky actions to encourage smoother movements"""
+        # No penalty if we don't have previous action
+
+        # Get cube velocity
+        cube_vel = self._get_cube_velocity()
+        cube_vel_magnitude = np.linalg.norm(cube_vel)
+
+        # Calculate velocity penalty to discourage smacking/bouncing
+        velocity_penalty = cube_vel_magnitude
+
+        if not hasattr(self, 'prev_action'):
+            return 0.0
+            
+        # Calculate action difference (penalize jerky movements)
+        action_diff = np.linalg.norm(action - self.prev_action)
+        
+        # Calculate action magnitude (penalize large actions)
+        action_magnitude = np.linalg.norm(action)
+        
+        penalty = -(0 * action_diff +
+                    0 * action_magnitude +
+                    0 * velocity_penalty)
+
+        # Print debug info occasionally
+        if self.step_counter % 100 == 0:  # Print in ~1% of steps
+            print(f"DEBUG - Action Diff: {action_diff:.4f}, "
+                  f"Action Magnitude: {action_magnitude:.4f}, "
+                  f"Velocity Penalty: {velocity_penalty:.4f}, "
+                  f"Penalty: {penalty:.4f}")
+        return penalty
 
     def _check_done(self):
         # Check if cube has reached the target height
@@ -120,9 +158,14 @@ class SimulationEnv:
         return self.data.geom_xpos[cube_geom_id][2]
         
     def _get_cube_position(self):
-        # Get full 3D position of the cube
-        cube_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "cube")
-        return self.data.geom_xpos[cube_geom_id]
+        # Get the position of the cube
+        cube_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "cube")
+        return self.data.xpos[cube_body_id]
+        
+    def _get_cube_velocity(self):
+        # Get the velocity of the cube
+        cube_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "cube")
+        return self.data.cvel[cube_body_id][:3]  # First 3 elements are linear velocity
         
     def _get_chopstick_position(self, stick_name):
         # Get the position of a chopstick
@@ -217,23 +260,6 @@ class SimulationEnv:
             return self._get_chopstick_position(obj_name)
         else:
             return self._get_cube_position()
-
-    def _calculate_action_penalty(self, action):
-        """Calculate penalty for large or jerky actions to encourage smoother movements"""
-        # No penalty if we don't have previous action
-        if not hasattr(self, 'prev_action'):
-            return 0.0
-            
-        # Calculate action difference (penalize jerky movements)
-        action_diff = np.linalg.norm(action - self.prev_action)
-        diff_penalty = -0.5 * action_diff
-        
-        # Calculate action magnitude (penalize large actions)
-        action_magnitude = np.linalg.norm(action)
-        magnitude_penalty = -0.3 * action_magnitude
-        
-        # Combine penalties
-        return 5.0 * (diff_penalty + magnitude_penalty)
         
     def _get_max_lift_height(self):
         # Placeholder: you can return a constant or define based on the model

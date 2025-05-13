@@ -11,7 +11,7 @@ custom_env = SimulationEnv(xml_path)
 env = GymWrapper(custom_env)
 
 # Load the trained model
-model = PPO.load("ppo_chopsticks_model")
+model = PPO.load("ppo_chopsticks_model_100")
 
 # Run the simulation with visualization
 obs, _ = env.reset()
@@ -21,7 +21,7 @@ print("Press Ctrl+C to stop the simulation")
 print("NOTE: This script must be run with 'mjpython' on macOS")
 
 # Set the maximum number of steps for a single run
-MAX_STEPS = 10000
+MAX_STEPS = 2000
 
 try:
     # Run the simulation once

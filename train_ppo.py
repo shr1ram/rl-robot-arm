@@ -82,13 +82,13 @@ loss_callback = LossTrackingCallback()
 
 # Train the agent with the callback
 # Calculate total_timesteps based on desired number of iterations
-iterations = 50
+iterations = 100
 total_timesteps = n_steps * iterations
 print(f"Training for {iterations} iterations ({total_timesteps} timesteps)")
 model.learn(total_timesteps=total_timesteps, callback=loss_callback)
 
 # Save the model
-model.save("ppo_chopsticks_model")
+model.save("ppo_chopsticks_model_" + str(iterations))
 
 # Plot the loss values
 plt.figure(figsize=(12, 8))
