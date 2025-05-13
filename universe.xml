@@ -1,4 +1,13 @@
 <mujoco>
+    <!-- Global physics settings to improve collision handling -->
+    <option timestep="0.002" iterations="20" solver="Newton" tolerance="1e-10"/>
+    
+    <!-- Global contact parameters to prevent interpenetration -->
+    <contact>
+        <pair geom1="cube_geom" geom2="left_stick_geom" solref="0.01 1" solimp="0.9 0.95 0.001" margin="0.005"/>
+        <pair geom1="cube_geom" geom2="right_stick_geom" solref="0.01 1" solimp="0.9 0.95 0.001" margin="0.005"/>
+    </contact>
+    
     <include file="chopsticks.xml"/>
     <include file="hard_cube.xml"/>
 </mujoco>

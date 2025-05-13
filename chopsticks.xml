@@ -35,7 +35,7 @@
 
   <default>
     <!-- Give every geom nonzero mass; base friction -->
-    <geom density="500" 
+    <geom density="5" 
           friction="0.5 0.1 0.1"/>
           <!-- solref="0.04 1"
           solimp="0.9 0.95 0.01"/> -->
@@ -52,14 +52,16 @@
     <body name="left_stick" pos="-0.1 0 0.5" gravcomp="1">
       <joint name="left_slide"  type="slide" axis="1 0 0" range="-0.05 0.05"/>
       <joint name="left_lift"  type="slide" axis="0 0 1" range="-0.5 0.5"/>
-      <geom  type="capsule" fromto="0 0 0 0 0.4 0" size="0.01" material="stick_mat"/>
+      <geom name="left_stick_geom" type="capsule" fromto="0 0 0 0 0.4 0" size="0.01" material="stick_mat"
+            solref="0.01 1" solimp="0.9 0.95 0.001" margin="0.005" priority="1"/>
     </body>
 
     <!-- Right chopstick -->
     <body name="right_stick" pos="0.1 0 0.5" gravcomp="1">
       <joint name="right_slide" type="slide" axis="1 0 0" range="-0.05 0.05"/>
       <joint name="right_lift" type="slide" axis="0 0 1" range="-0.5 0.5"/>
-      <geom  type="capsule" fromto="0 0 0 0 0.4 0" size="0.01" material="stick_mat"/>
+      <geom name="right_stick_geom" type="capsule" fromto="0 0 0 0 0.4 0" size="0.01" material="stick_mat"
+            solref="0.01 1" solimp="0.9 0.95 0.001" margin="0.005" priority="1"/>
     </body>
 
   </worldbody>
