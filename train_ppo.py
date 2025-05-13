@@ -42,13 +42,14 @@ model = PPO(
     clip_range=0.2  # PPO clip parameter
 )
 
-# Create a callback to track loss values
+# Create a callback to track loss values and save models periodically
 from stable_baselines3.common.callbacks import BaseCallback
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 class LossTrackingCallback(BaseCallback):
-    def __init__(self, verbose=0):
+    def __init__(self, verbose=0, save_freq=25, save_path="./models"):
         super(LossTrackingCallback, self).__init__(verbose)
         self.losses = []
         self.policy_losses = []
@@ -57,28 +58,62 @@ class LossTrackingCallback(BaseCallback):
         self.iterations = []
         self.iter_count = 0
         
+        # Parameters for periodic saving
+        self.save_freq = save_freq  # Save every N iterations
+        self.save_path = save_path
+        
+        # Create models directory if it doesn't exist
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        
     def _on_step(self):
         return True
     
     def _on_rollout_end(self):
-        # Extract loss values from logger
-        if len(self.model.logger.name_to_value) > 0:
-            self.iter_count += 1
-            self.iterations.append(self.iter_count)
+        # Get the loss values from the model's logger
+        if self.model.logger is not None and hasattr(self.model.logger, "name_to_value"):
+            # Collect loss values
+            policy_loss = None
+            value_loss = None
+            entropy_loss = None
+            total_loss = None
             
-            # Extract different loss components if available
-            if 'train/loss' in self.model.logger.name_to_value:
-                self.losses.append(self.model.logger.name_to_value['train/loss'])
-            if 'train/policy_gradient_loss' in self.model.logger.name_to_value:
-                self.policy_losses.append(self.model.logger.name_to_value['train/policy_gradient_loss'])
-            if 'train/value_loss' in self.model.logger.name_to_value:
-                self.value_losses.append(self.model.logger.name_to_value['train/value_loss'])
-            if 'train/entropy_loss' in self.model.logger.name_to_value:
-                self.entropy_losses.append(self.model.logger.name_to_value['train/entropy_loss'])
+            for key, value in self.model.logger.name_to_value.items():
+                if key == "train/policy_gradient_loss":
+                    policy_loss = value
+                elif key == "train/value_loss":
+                    value_loss = value
+                elif key == "train/entropy_loss":
+                    entropy_loss = value
+                elif key == "train/loss":
+                    total_loss = value
+            
+            # Only increment iteration counter and append values if we have data
+            if any([policy_loss, value_loss, entropy_loss, total_loss]):
+                # Increment iteration counter
+                self.iter_count += 1
+                self.iterations.append(self.iter_count)
+                
+                # Append loss values
+                if total_loss is not None:
+                    self.losses.append(total_loss)
+                if policy_loss is not None:
+                    self.policy_losses.append(policy_loss)
+                if value_loss is not None:
+                    self.value_losses.append(value_loss)
+                if entropy_loss is not None:
+                    self.entropy_losses.append(entropy_loss)
+                
+                # Save the model periodically
+                if self.iter_count % self.save_freq == 0:
+                    save_path = os.path.join(self.save_path, f"ppo_chopsticks_model_{self.iter_count}")
+                    self.model.save(save_path)
+                    print(f"\nModel saved at iteration {self.iter_count}: {save_path}\n")
+        
         return True
 
-# Create the callback
-loss_callback = LossTrackingCallback()
+# Create the callback with periodic saving every 25 iterations
+loss_callback = LossTrackingCallback(save_freq=25, save_path="./models")
 
 # Train the agent with the callback
 # Calculate total_timesteps based on desired number of iterations
@@ -87,8 +122,15 @@ total_timesteps = n_steps * iterations
 print(f"Training for {iterations} iterations ({total_timesteps} timesteps)")
 model.learn(total_timesteps=total_timesteps, callback=loss_callback)
 
-# Save the model
+# Save the final model
+final_model_path = "./models/ppo_chopsticks_model_final"
+model.save(final_model_path)
+print(f"Final model saved at: {final_model_path}")
+
+# Also save a copy with a simple name for easy loading
 model.save("ppo_chopsticks_model")
+print("Also saved as: ppo_chopsticks_model (for backward compatibility)")
+
 
 # Plot the loss values
 plt.figure(figsize=(12, 8))
