@@ -20,6 +20,10 @@ class SimulationEnv:
         self.max_steps = max_steps  # None means no step limit
 
     def step(self, action):
+        # Store previous action for calculating action penalty
+        if not hasattr(self, 'prev_action'):
+            self.prev_action = np.zeros_like(action)
+        
         # Apply action and step the simulation
         self.data.ctrl[:] = action
         mujoco.mj_step(self.model, self.data)
@@ -27,14 +31,23 @@ class SimulationEnv:
         # Increment step counter
         self.step_counter += 1
         
-        # Calculate reward
+        # Calculate reward with action penalty
         obs = self._get_obs()
-        reward = self._compute_reward()
+        base_reward = self._compute_reward()
+        
+        # Calculate action penalty
+        action_penalty = self._calculate_action_penalty(action)
+        reward = base_reward + action_penalty
+        
+        # Store current action for next step
+        self.prev_action = action.copy()
         
         # Check if episode should terminate due to cube height
         done = self._check_done()
         if self.step_counter % 100 == 0:  # Print with 10% chance to avoid too much output
             print(self.step_counter)
+            # Print action penalty in debug output
+            print(f"Action penalty: {action_penalty:.4f}, Total reward: {reward:.4f}")
         # Also check if episode should terminate due to step limit
         if self.max_steps is not None and self.step_counter >= self.max_steps:
             done = True
@@ -79,8 +92,8 @@ class SimulationEnv:
         
         # Combine rewards with balanced weights
         reward = (10.0 * height_reward + 
-                 200.0 * left_distance_reward + 
-                 200.0 * right_distance_reward + 
+                 20.0 * left_distance_reward + 
+                 20.0 * right_distance_reward + 
                  8.0 * alignment_reward)
         
         # Print debug info occasionally
@@ -205,6 +218,23 @@ class SimulationEnv:
         else:
             return self._get_cube_position()
 
+    def _calculate_action_penalty(self, action):
+        """Calculate penalty for large or jerky actions to encourage smoother movements"""
+        # No penalty if we don't have previous action
+        if not hasattr(self, 'prev_action'):
+            return 0.0
+            
+        # Calculate action difference (penalize jerky movements)
+        action_diff = np.linalg.norm(action - self.prev_action)
+        diff_penalty = -0.5 * action_diff
+        
+        # Calculate action magnitude (penalize large actions)
+        action_magnitude = np.linalg.norm(action)
+        magnitude_penalty = -0.3 * action_magnitude
+        
+        # Combine penalties
+        return 5.0 * (diff_penalty + magnitude_penalty)
+        
     def _get_max_lift_height(self):
         # Placeholder: you can return a constant or define based on the model
         return 0.6  # e.g., max target height

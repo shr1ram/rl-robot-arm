@@ -20,7 +20,27 @@ check_env(wrapped_env.envs[0], warn=True)
 # Initialize PPO model
 # Setting n_steps parameter to control batch size per update
 n_steps = 2048  # Default PPO batch size
-model = PPO("MlpPolicy", wrapped_env, verbose=1, n_steps=n_steps)
+
+# Increase entropy coefficient to encourage exploration
+ent_coef = 0.01  # Default is 0.0
+
+# Use a larger network for more capacity
+policy_kwargs = dict(
+    net_arch=[dict(pi=[128, 128], vf=[128, 128])]
+)
+
+model = PPO(
+    "MlpPolicy", 
+    wrapped_env, 
+    verbose=1, 
+    n_steps=n_steps,
+    ent_coef=ent_coef,  # Higher entropy encourages exploration
+    policy_kwargs=policy_kwargs,
+    learning_rate=3e-4,
+    gamma=0.99,  # Discount factor
+    gae_lambda=0.95,  # GAE parameter
+    clip_range=0.2  # PPO clip parameter
+)
 
 # Create a callback to track loss values
 from stable_baselines3.common.callbacks import BaseCallback
